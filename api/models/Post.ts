@@ -1,6 +1,7 @@
 import mongoose, { Schema, type Model, type Document } from 'mongoose'
 
 export interface IComment {
+  _id: mongoose.Types.ObjectId
   content: string
   author: mongoose.Types.ObjectId
   createdAt: Date
@@ -24,7 +25,7 @@ const CommentSchema = new Schema<IComment>(
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
-    _id: false,
+    _id: true,
   },
 )
 

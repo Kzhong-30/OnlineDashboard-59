@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
+import mongoose from 'mongoose'
 import { store, type IUser, type IRecipe, type IPost, type ICourse, type IComment } from './store.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'bake_community_secret_key_2024'
@@ -695,6 +696,7 @@ export const addComment = async (userId: string, postId: string, body: { content
   }
 
   const comment: IComment = {
+    _id: generateId(),
     content,
     author: userId,
     createdAt: new Date(),
@@ -704,9 +706,14 @@ export const addComment = async (userId: string, postId: string, body: { content
   post.updatedAt = new Date()
 
   const commentDTO = {
-    ...comment,
+    id: comment._id,
+    content: comment.content,
     author: populateAuthor(userId),
+    createdAt: comment.createdAt.toISOString(),
   }
+
+
+
 
   return { success: true, comment: commentDTO, status: 201 }
 }

@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
+import mongoose from 'mongoose'
 
 type Category = 'bread' | 'cake' | 'cookie' | 'dessert'
 
@@ -18,6 +19,7 @@ export interface IStep {
 }
 
 export interface IComment {
+  _id: string
   content: string
   author: string
   createdAt: Date
@@ -428,6 +430,7 @@ export const initializeStore = async (): Promise<void> => {
       likes: store.users.filter((_, i) => i !== authorIndex).map((u) => u._id),
       comments: [
         {
+          _id: generateId(),
           content: index === 0 ? '太棒了，看起来好好吃！' : '下次我也试试！',
           author: store.users[(index + 1) % store.users.length]._id,
           createdAt: new Date(),
