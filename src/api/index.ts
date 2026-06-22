@@ -59,15 +59,17 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   if (data && typeof data === "object" && "success" in data) {
     const { success, ...rest } = data as Record<string, unknown>;
     if (success) {
-      if ("user" in rest) return rest.user as unknown as T;
-      if ("recipe" in rest) return rest.recipe as unknown as T;
+      if ("token" in rest && "user" in rest) return { user: rest.user, token: rest.token } as unknown as T;
+      if ("recipe" in rest && "recipes" in rest === false) return rest.recipe as unknown as T;
       if ("recipes" in rest) return { recipes: rest.recipes, total: rest.total, pagination: rest.pagination } as unknown as T;
-      if ("post" in rest) return rest.post as unknown as T;
+      if ("post" in rest && "posts" in rest === false) return rest.post as unknown as T;
       if ("posts" in rest) return { posts: rest.posts, total: rest.total, pagination: rest.pagination } as unknown as T;
-      if ("course" in rest) return rest.course as unknown as T;
+      if ("comment" in rest) return rest.comment as unknown as T;
+      if ("course" in rest && "courses" in rest === false) return rest.course as unknown as T;
       if ("courses" in rest) return rest.courses as unknown as T;
       if ("users" in rest) return rest.users as unknown as T;
-      return rest as unknown as T;
+      if ("user" in rest) return rest.user as unknown as T;
+      return undefined as unknown as T;
     }
     throw new Error((rest as { message?: string }).message || "Request failed");
   }
