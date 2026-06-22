@@ -25,3 +25,4 @@ dist-ssr
 .vite.env
 .env.local
 node_modules
+.env

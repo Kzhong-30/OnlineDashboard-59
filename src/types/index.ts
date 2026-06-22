@@ -64,9 +64,6 @@ export interface Post {
   content: string;
   recipe?: RecipeSummary;
   author: User;
-  user?: User;
-  keyword?: string;
-  likes?: string[] | number;
   likesCount: number;
   commentsCount: number;
   comments?: Comment[];

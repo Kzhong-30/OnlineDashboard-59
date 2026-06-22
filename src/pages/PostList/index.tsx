@@ -63,7 +63,7 @@ export default function PostList() {
       setPostList((prev) =>
         prev.map((p) =>
           p.id === postId
-            ? { ...p, likesCount: currentlyLiked ? (p.likesCount || 0) - 1 : (p.likesCount || 0) + 1, likes: currentlyLiked ? (p.likesCount || 0) - 1 : (p.likesCount || 0) + 1, isLiked: !currentlyLiked }
+            ? { ...p, likesCount: currentlyLiked ? (p.likesCount || 0) - 1 : (p.likesCount || 0) + 1, isLiked: !currentlyLiked }
             : p
         )
       );
@@ -255,7 +255,7 @@ export default function PostList() {
                     handleLike(detailModal.post!.id, detailModal.post!.isLiked || false);
                     setDetailModal((prev) => ({
                       ...prev,
-                      post: prev.post ? { ...prev.post, isLiked: !prev.post.isLiked, likes: (prev.post.likesCount || 0) + (prev.post.isLiked ? -1 : 1), likesCount: (prev.post.likesCount || 0) + (prev.post.isLiked ? -1 : 1) } : null,
+                      post: prev.post ? { ...prev.post, isLiked: !prev.post.isLiked, likesCount: (prev.post.likesCount || 0) + (prev.post.isLiked ? -1 : 1) } : null,
                     }));
                   }}
                   style={{ color: detailModal.post.isLiked ? '#EF4444' : '#8B4513' }}

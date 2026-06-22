@@ -74,7 +74,6 @@ export const users = {
   getCurrentUser: (): Promise<User> => request('/users/me'),
 };
 
-
 export interface GetRecipesParams {
   category?: RecipeCategory;
   difficulty?: 1 | 2 | 3 | 4 | 5;
@@ -86,7 +85,7 @@ export interface GetRecipesParams {
 }
 
 export const recipes = {
-  getRecipes: (params: GetRecipesParams = {}): Promise<{ recipes: RecipeSummary[]; total: number }> =>
+  getRecipes: (params: GetRecipesParams = {}): Promise<{ recipes: RecipeSummary[]; total: number; pagination: { page: number; limit: number; total: number; totalPages: number } }> =>
     request("/recipes", { params }),
   getRecipe: (id: string): Promise<RecipeDetail> => request(`/recipes/${id}`),
   createRecipe: (data: Partial<RecipeDetail>): Promise<RecipeDetail> =>
@@ -96,7 +95,6 @@ export const recipes = {
   favoriteRecipe: (id: string): Promise<void> => request(`/recipes/${id}/favorite`, { method: "POST" }),
   unfavoriteRecipe: (id: string): Promise<void> => request(`/recipes/${id}/unfavorite`, { method: "POST" }),
 };
-
 
 export interface GetPostsParams {
   recipeId?: string;
@@ -121,7 +119,7 @@ export const courses = {
   getCourses: (): Promise<Course[]> => request("/courses"),
   getCourse: (id: string): Promise<Course> => request(`/courses/${id}`),
   updateProgress: (id: string, progress: number): Promise<void> =>
-    request(`/courses/${id}/progress`, { method: "PUT", body: JSON.stringify({ progress }) }),
+    request(`/courses/${id}/progress`, { method: "POST", body: JSON.stringify({ progress }) }),
 };
 
 export const api = { auth, users, recipes, posts, courses };
