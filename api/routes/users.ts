@@ -45,4 +45,19 @@ router.delete('/:id/follow', authMiddleware, async (req: AuthRequest, res: Respo
   res.status(status).json(result)
 })
 
+
+router.get("/:id/followers", async (req: AuthRequest, res: Response) => {
+  const result = await handlers.getFollowers(req.params.id)
+  const status = result.status || 500
+  delete result.status
+  res.status(status).json(result)
+})
+
+router.get("/:id/following", async (req: AuthRequest, res: Response) => {
+  const result = await handlers.getFollowing(req.params.id)
+  const status = result.status || 500
+  delete result.status
+  res.status(status).json(result)
+})
+
 export default router
