@@ -55,7 +55,23 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     throw new Error((errorData as { message?: string }).message || `HTTP error! status: ${response.status}`);
   }
 
-  return response.json() as Promise<T>;
+  const data = await response.json();
+  if (data && typeof data === "object" && "success" in data) {
+    const { success, ...rest } = data as Record<string, unknown>;
+    if (success) {
+      if ("user" in rest) return rest.user as unknown as T;
+      if ("recipe" in rest) return rest.recipe as unknown as T;
+      if ("recipes" in rest) return { recipes: rest.recipes, total: rest.total, pagination: rest.pagination } as unknown as T;
+      if ("post" in rest) return rest.post as unknown as T;
+      if ("posts" in rest) return { posts: rest.posts, total: rest.total, pagination: rest.pagination } as unknown as T;
+      if ("course" in rest) return rest.course as unknown as T;
+      if ("courses" in rest) return rest.courses as unknown as T;
+      if ("users" in rest) return rest.users as unknown as T;
+      return rest as unknown as T;
+    }
+    throw new Error((rest as { message?: string }).message || "Request failed");
+  }
+  return data as T;
 }
 
 export const auth = {
@@ -68,7 +84,7 @@ export const auth = {
 export const users = {
   getUser: (id: string): Promise<User> => request(`/users/${id}`),
   followUser: (id: string): Promise<void> => request(`/users/${id}/follow`, { method: 'POST' }),
-  unfollowUser: (id: string): Promise<void> => request(`/users/${id}/unfollow`, { method: 'POST' }),
+  unfollowUser: (id: string): Promise<void> => request(`/users/${id}/follow`, { method: 'DELETE' }),
   getFollowers: (id: string): Promise<User[]> => request(`/users/${id}/followers`),
   getFollowing: (id: string): Promise<User[]> => request(`/users/${id}/following`),
   getCurrentUser: (): Promise<User> => request('/users/me'),
@@ -91,9 +107,9 @@ export const recipes = {
   createRecipe: (data: Partial<RecipeDetail>): Promise<RecipeDetail> =>
     request("/recipes", { method: "POST", body: JSON.stringify(data) }),
   likeRecipe: (id: string): Promise<void> => request(`/recipes/${id}/like`, { method: "POST" }),
-  unlikeRecipe: (id: string): Promise<void> => request(`/recipes/${id}/unlike`, { method: "POST" }),
+  unlikeRecipe: (id: string): Promise<void> => request(`/recipes/${id}/like`, { method: "DELETE" }),
   favoriteRecipe: (id: string): Promise<void> => request(`/recipes/${id}/favorite`, { method: "POST" }),
-  unfavoriteRecipe: (id: string): Promise<void> => request(`/recipes/${id}/unfavorite`, { method: "POST" }),
+  unfavoriteRecipe: (id: string): Promise<void> => request(`/recipes/${id}/favorite`, { method: "DELETE" }),
 };
 
 export interface GetPostsParams {
@@ -110,7 +126,7 @@ export const posts = {
   createPost: (data: { images: string[]; content: string; recipeId?: string }): Promise<Post> =>
     request("/posts", { method: "POST", body: JSON.stringify(data) }),
   likePost: (id: string): Promise<void> => request(`/posts/${id}/like`, { method: "POST" }),
-  unlikePost: (id: string): Promise<void> => request(`/posts/${id}/unlike`, { method: "POST" }),
+  unlikePost: (id: string): Promise<void> => request(`/posts/${id}/like`, { method: "DELETE" }),
   addComment: (id: string, content: string): Promise<Comment> =>
     request(`/posts/${id}/comments`, { method: "POST", body: JSON.stringify({ content }) }),
 };

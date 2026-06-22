@@ -18,43 +18,58 @@ const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const userToDTO = (user: IUser): Record<string, unknown> => {
   const { password, ...rest } = user
   return {
-    ...rest,
     id: user._id,
+    username: user.username,
+    email: user.email,
+    avatar: user.avatar,
+    bio: user.bio,
+    followersCount: user.followers.length,
     followingCount: user.following.length,
-    followerCount: user.followers.length,
-    likedRecipeCount: user.likedRecipes.length,
-    favoritedRecipeCount: user.favoritedRecipes.length,
+    recipesCount: store.recipes.filter((r) => r.author === user._id).length,
+    postsCount: store.posts.filter((p) => p.author === user._id).length,
   }
 }
 
 const userToDTOWithoutProgress = (user: IUser): Record<string, unknown> => {
   const { password, courseProgress, likedPosts, ...rest } = user
   return {
-    ...rest,
     id: user._id,
+    username: user.username,
+    email: user.email,
+    avatar: user.avatar,
+    bio: user.bio,
+    followersCount: user.followers.length,
     followingCount: user.following.length,
-    followerCount: user.followers.length,
-    likedRecipeCount: user.likedRecipes.length,
-    favoritedRecipeCount: user.favoritedRecipes.length,
+    recipesCount: store.recipes.filter((r) => r.author === user._id).length,
+    postsCount: store.posts.filter((p) => p.author === user._id).length,
   }
 }
 
 const authorToDTO = (user: IUser): Record<string, unknown> => {
   return {
-    _id: user._id,
     id: user._id,
     username: user.username,
+    email: user.email,
     avatar: user.avatar,
     bio: user.bio,
+    followersCount: user.followers.length,
+    followingCount: user.following.length,
+    recipesCount: store.recipes.filter((r) => r.author === user._id).length,
+    postsCount: store.posts.filter((p) => p.author === user._id).length,
   }
 }
 
 const recipeAuthorToDTO = (user: IUser): Record<string, unknown> => {
   return {
-    _id: user._id,
     id: user._id,
     username: user.username,
+    email: user.email,
     avatar: user.avatar,
+    bio: user.bio,
+    followersCount: user.followers.length,
+    followingCount: user.following.length,
+    recipesCount: store.recipes.filter((r) => r.author === user._id).length,
+    postsCount: store.posts.filter((p) => p.author === user._id).length,
   }
 }
 
@@ -66,45 +81,87 @@ const populateAuthor = (authorId: string, detailed = false): Record<string, unkn
 
 const recipeToDTO = (recipe: IRecipe, detailed = false): Record<string, unknown> => {
   return {
-    ...recipe,
     id: recipe._id,
+    title: recipe.title,
+    description: recipe.description,
+    cover: recipe.cover,
+    category: recipe.category,
+    difficulty: recipe.difficulty,
+    duration: recipe.duration,
+    servings: recipe.servings,
+    temperature: recipe.temperature,
+    bakingTime: recipe.bakingTime,
+    ingredients: recipe.ingredients.map((ing) => ({ ...ing, id: ing.name })),
+    steps: recipe.steps.map((s, idx) => ({ ...s, id: String(idx + 1) })),
     author: populateAuthor(recipe.author, detailed),
+    likesCount: recipe.likes.length,
+    createdAt: recipe.createdAt.toISOString(),
   }
 }
 
 const postToDTO = (post: IPost): Record<string, unknown> => {
   const author = populateAuthor(post.author)
   const recipe = post.recipe ? store.recipes.find((r) => r._id === post.recipe) : null
-  const comments = post.comments.map((c) => ({
-    ...c,
-    author: populateAuthor(c.author),
-  }))
+  const comments = post.comments
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    .map((c, idx) => ({
+      id: String(idx + 1),
+      content: c.content,
+      author: populateAuthor(c.author),
+      createdAt: c.createdAt.toISOString(),
+    }))
   return {
-    ...post,
     id: post._id,
+    images: post.images,
+    content: post.content,
     author,
-    recipe: recipe ? { _id: recipe._id, id: recipe._id, title: recipe.title, cover: recipe.cover } : undefined,
+    recipe: recipe
+      ? {
+          id: recipe._id,
+          title: recipe.title,
+          cover: recipe.cover,
+          category: recipe.category,
+          difficulty: recipe.difficulty,
+          duration: recipe.duration,
+          author: populateAuthor(recipe.author),
+          likesCount: recipe.likes.length,
+          description: recipe.description,
+          servings: recipe.servings,
+        }
+      : undefined,
+    likesCount: post.likes.length,
+    commentsCount: post.comments.length,
     comments,
+    createdAt: post.createdAt.toISOString(),
   }
 }
 
 const courseToDTO = (course: ICourse, userId?: string): Record<string, unknown> => {
   const author = populateAuthor(course.author, true)
+  const chapters = course.chapters
+    .sort((a, b) => a.order - b.order)
+    .map((c, idx) => ({ ...c, id: String(idx + 1) }))
   const dto: Record<string, unknown> = {
-    ...course,
     id: course._id,
+    title: course.title,
+    cover: course.cover,
+    description: course.description,
+    price: course.price,
     author,
+    chapters,
   }
   if (userId) {
     const user = store.users.find((u) => u._id === userId)
-    dto.progress = user?.courseProgress?.[course._id] || []
+    const watched = user?.courseProgress?.[course._id] || []
+    dto.progress = chapters.length > 0 ? Math.round((watched.length / chapters.length) * 100) : 0
   }
   return dto
 }
 
+
 // ===== AUTH =====
 
-export const register = async (body: { username: string; email: string; password: string }): Promise<{ success: boolean; token?: string; user?: Record<string, unknown>; message?: string; status?: number }> => {
+export const register = async (body: { username: string; email: string; password: string }): Promise<{ success: boolean; token?: string; user?: Record<string, unknown>; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const { username, email, password } = body
 
@@ -143,7 +200,7 @@ export const register = async (body: { username: string; email: string; password
   return { success: true, token, user: userToDTO(newUser), status: 201 }
 }
 
-export const login = async (body: { email: string; password: string }): Promise<{ success: boolean; token?: string; user?: Record<string, unknown>; message?: string; status?: number }> => {
+export const login = async (body: { email: string; password: string }): Promise<{ success: boolean; token?: string; user?: Record<string, unknown>; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const { email, password } = body
 
@@ -167,7 +224,7 @@ export const login = async (body: { email: string; password: string }): Promise<
 
 // ===== USERS =====
 
-export const getUser = async (id: string): Promise<{ success: boolean; user?: Record<string, unknown>; message?: string; status?: number }> => {
+export const getUser = async (id: string): Promise<{ success: boolean; user?: Record<string, unknown>; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const user = store.users.find((u) => u._id === id)
   if (!user) {
@@ -176,7 +233,7 @@ export const getUser = async (id: string): Promise<{ success: boolean; user?: Re
   return { success: true, user: userToDTOWithoutProgress(user), status: 200 }
 }
 
-export const getCurrentUser = async (userId: string): Promise<{ success: boolean; user?: Record<string, unknown>; message?: string; status?: number }> => {
+export const getCurrentUser = async (userId: string): Promise<{ success: boolean; user?: Record<string, unknown>; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const user = store.users.find((u) => u._id === userId)
   if (!user) {
@@ -185,7 +242,7 @@ export const getCurrentUser = async (userId: string): Promise<{ success: boolean
   return { success: true, user: userToDTO(user), status: 200 }
 }
 
-export const followUser = async (currentUserId: string, targetId: string): Promise<{ success: boolean; message?: string; status?: number }> => {
+export const followUser = async (currentUserId: string, targetId: string): Promise<{ success: boolean; total?: number; message?: string; status?: number }> => {
   await delay(10)
 
   if (targetId === currentUserId) {
@@ -215,7 +272,7 @@ export const followUser = async (currentUserId: string, targetId: string): Promi
   return { success: true, message: '关注成功', status: 200 }
 }
 
-export const unfollowUser = async (currentUserId: string, targetId: string): Promise<{ success: boolean; message?: string; status?: number }> => {
+export const unfollowUser = async (currentUserId: string, targetId: string): Promise<{ success: boolean; total?: number; message?: string; status?: number }> => {
   await delay(10)
 
   const targetUser = store.users.find((u) => u._id === targetId)
@@ -241,7 +298,7 @@ export const unfollowUser = async (currentUserId: string, targetId: string): Pro
   return { success: true, message: '取消关注成功', status: 200 }
 }
 
-export const getFollowers = async (userId: string): Promise<{ success: boolean; users?: Record<string, unknown>[]; message?: string; status?: number }> => {
+export const getFollowers = async (userId: string): Promise<{ success: boolean; users?: Record<string, unknown>[]; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const user = store.users.find((u) => u._id === userId)
   if (!user) {
@@ -251,7 +308,7 @@ export const getFollowers = async (userId: string): Promise<{ success: boolean; 
   return { success: true, users: followers, status: 200 }
 }
 
-export const getFollowing = async (userId: string): Promise<{ success: boolean; users?: Record<string, unknown>[]; message?: string; status?: number }> => {
+export const getFollowing = async (userId: string): Promise<{ success: boolean; users?: Record<string, unknown>[]; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const user = store.users.find((u) => u._id === userId)
   if (!user) {
@@ -272,7 +329,7 @@ interface GetRecipesQuery {
   limit?: string
 }
 
-export const getRecipes = async (query: GetRecipesQuery): Promise<{ success: boolean; recipes?: Record<string, unknown>[]; pagination?: { page: number; limit: number; total: number; totalPages: number }; message?: string; status?: number }> => {
+export const getRecipes = async (query: GetRecipesQuery): Promise<{ success: boolean; recipes?: Record<string, unknown>[]; pagination?: { page: number; limit: number; total: number; totalPages: number }; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const { category, difficulty, time, search, page = '1', limit = '10' } = query
 
@@ -324,11 +381,12 @@ export const getRecipes = async (query: GetRecipesQuery): Promise<{ success: boo
       total,
       totalPages: Math.ceil(total / limitNum),
     },
+    total,
     status: 200,
   }
 }
 
-export const getRecipe = async (id: string, userId?: string): Promise<{ success: boolean; recipe?: Record<string, unknown>; message?: string; status?: number }> => {
+export const getRecipe = async (id: string, userId?: string): Promise<{ success: boolean; recipe?: Record<string, unknown>; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const recipe = store.recipes.find((r) => r._id === id)
   if (!recipe) {
@@ -361,7 +419,7 @@ interface CreateRecipeBody {
   steps: Array<{ order: number; description: string; image?: string; temperature?: number; duration?: number }>
 }
 
-export const createRecipe = async (userId: string, body: CreateRecipeBody): Promise<{ success: boolean; recipe?: Record<string, unknown>; message?: string; status?: number }> => {
+export const createRecipe = async (userId: string, body: CreateRecipeBody): Promise<{ success: boolean; recipe?: Record<string, unknown>; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const { title, description, cover, category, difficulty, duration, servings, temperature, bakingTime, ingredients, steps } = body
 
@@ -394,7 +452,7 @@ export const createRecipe = async (userId: string, body: CreateRecipeBody): Prom
   return { success: true, recipe: recipeToDTO(newRecipe), status: 201 }
 }
 
-export const likeRecipe = async (userId: string, recipeId: string): Promise<{ success: boolean; message?: string; status?: number }> => {
+export const likeRecipe = async (userId: string, recipeId: string): Promise<{ success: boolean; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const recipe = store.recipes.find((r) => r._id === recipeId)
   if (!recipe) {
@@ -418,7 +476,7 @@ export const likeRecipe = async (userId: string, recipeId: string): Promise<{ su
   return { success: true, message: '点赞成功', status: 200 }
 }
 
-export const unlikeRecipe = async (userId: string, recipeId: string): Promise<{ success: boolean; message?: string; status?: number }> => {
+export const unlikeRecipe = async (userId: string, recipeId: string): Promise<{ success: boolean; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const recipe = store.recipes.find((r) => r._id === recipeId)
   if (!recipe) {
@@ -442,7 +500,7 @@ export const unlikeRecipe = async (userId: string, recipeId: string): Promise<{ 
   return { success: true, message: '取消点赞成功', status: 200 }
 }
 
-export const favoriteRecipe = async (userId: string, recipeId: string): Promise<{ success: boolean; message?: string; status?: number }> => {
+export const favoriteRecipe = async (userId: string, recipeId: string): Promise<{ success: boolean; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const recipe = store.recipes.find((r) => r._id === recipeId)
   if (!recipe) {
@@ -466,7 +524,7 @@ export const favoriteRecipe = async (userId: string, recipeId: string): Promise<
   return { success: true, message: '收藏成功', status: 200 }
 }
 
-export const unfavoriteRecipe = async (userId: string, recipeId: string): Promise<{ success: boolean; message?: string; status?: number }> => {
+export const unfavoriteRecipe = async (userId: string, recipeId: string): Promise<{ success: boolean; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const recipe = store.recipes.find((r) => r._id === recipeId)
   if (!recipe) {
@@ -499,7 +557,7 @@ interface GetPostsQuery {
   limit?: string
 }
 
-export const getPosts = async (query: GetPostsQuery): Promise<{ success: boolean; posts?: Record<string, unknown>[]; pagination?: { page: number; limit: number; total: number; totalPages: number }; message?: string; status?: number }> => {
+export const getPosts = async (query: GetPostsQuery): Promise<{ success: boolean; posts?: Record<string, unknown>[]; pagination?: { page: number; limit: number; total: number; totalPages: number }; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const { recipeId, userId, page = '1', limit = '10' } = query
 
@@ -530,11 +588,12 @@ export const getPosts = async (query: GetPostsQuery): Promise<{ success: boolean
       total,
       totalPages: Math.ceil(total / limitNum),
     },
+    total,
     status: 200,
   }
 }
 
-export const getPost = async (id: string): Promise<{ success: boolean; post?: Record<string, unknown>; message?: string; status?: number }> => {
+export const getPost = async (id: string): Promise<{ success: boolean; post?: Record<string, unknown>; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const post = store.posts.find((p) => p._id === id)
   if (!post) {
@@ -549,7 +608,7 @@ interface CreatePostBody {
   recipeId?: string
 }
 
-export const createPost = async (userId: string, body: CreatePostBody): Promise<{ success: boolean; post?: Record<string, unknown>; message?: string; status?: number }> => {
+export const createPost = async (userId: string, body: CreatePostBody): Promise<{ success: boolean; post?: Record<string, unknown>; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const { images, content, recipeId } = body
 
@@ -574,7 +633,7 @@ export const createPost = async (userId: string, body: CreatePostBody): Promise<
   return { success: true, post: postToDTO(newPost), status: 201 }
 }
 
-export const likePost = async (userId: string, postId: string): Promise<{ success: boolean; message?: string; status?: number }> => {
+export const likePost = async (userId: string, postId: string): Promise<{ success: boolean; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const post = store.posts.find((p) => p._id === postId)
   if (!post) {
@@ -598,7 +657,7 @@ export const likePost = async (userId: string, postId: string): Promise<{ succes
   return { success: true, message: '点赞成功', status: 200 }
 }
 
-export const unlikePost = async (userId: string, postId: string): Promise<{ success: boolean; message?: string; status?: number }> => {
+export const unlikePost = async (userId: string, postId: string): Promise<{ success: boolean; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const post = store.posts.find((p) => p._id === postId)
   if (!post) {
@@ -622,7 +681,7 @@ export const unlikePost = async (userId: string, postId: string): Promise<{ succ
   return { success: true, message: '取消点赞成功', status: 200 }
 }
 
-export const addComment = async (userId: string, postId: string, body: { content: string }): Promise<{ success: boolean; comment?: Record<string, unknown>; message?: string; status?: number }> => {
+export const addComment = async (userId: string, postId: string, body: { content: string }): Promise<{ success: boolean; comment?: Record<string, unknown>; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const { content } = body
 
@@ -654,13 +713,13 @@ export const addComment = async (userId: string, postId: string, body: { content
 
 // ===== COURSES =====
 
-export const getCourses = async (): Promise<{ success: boolean; courses?: Record<string, unknown>[]; message?: string; status?: number }> => {
+export const getCourses = async (): Promise<{ success: boolean; courses?: Record<string, unknown>[]; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const sorted = [...store.courses].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   return { success: true, courses: sorted.map((c) => courseToDTO(c)), status: 200 }
 }
 
-export const getCourse = async (id: string, userId?: string): Promise<{ success: boolean; course?: Record<string, unknown>; message?: string; status?: number }> => {
+export const getCourse = async (id: string, userId?: string): Promise<{ success: boolean; course?: Record<string, unknown>; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const course = store.courses.find((c) => c._id === id)
   if (!course) {
@@ -669,7 +728,7 @@ export const getCourse = async (id: string, userId?: string): Promise<{ success:
   return { success: true, course: courseToDTO(course, userId), status: 200 }
 }
 
-export const updateProgress = async (userId: string, courseId: string, body: { chapterId: string }): Promise<{ success: boolean; progress?: string[]; message?: string; status?: number }> => {
+export const updateProgress = async (userId: string, courseId: string, body: { chapterId: string }): Promise<{ success: boolean; progress?: string[]; total?: number; message?: string; status?: number }> => {
   await delay(10)
   const { chapterId } = body
 
